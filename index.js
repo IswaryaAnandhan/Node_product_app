@@ -3,8 +3,8 @@ const cors = require("cors");
 const mongodb = require("mongodb");
 const mongoclient = mongodb.MongoClient;
 const app = express();
-const URL = "mongodb+srv://Iswarya:Geetha71@cluster0.stxvr2g.mongodb.net/?retryWrites=true&w=majority";
-
+const dotenv=require("dotenv").config()
+const URL = process.env.DB;
 app.use(
   cors({
     origin: "https://wonderful-pasca-1dd86e.netlify.app",
