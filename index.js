@@ -7,7 +7,7 @@ const URL = "mongodb+srv://Iswarya:Geetha71@cluster0.stxvr2g.mongodb.net/?retryW
 
 app.use(
   cors({
-    origin: "http://localhost:3001",
+    origin: "https://wonderful-pasca-1dd86e.netlify.app/",
   })
 );
 
