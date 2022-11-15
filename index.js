@@ -130,7 +130,7 @@ app.post("/Reset", async function (req, res) {
       expiresIn: "2m",
     });
 
-    const link = `https://wonderful-pasca-1dd86e.netlify.app/${user._id}/${token}`;
+    const link = `https://wonderful-pasca-1dd86e.netlify.app//Reset-Password/${user._id}/${token}`;
     console.log(link);
 
     //Send a link Via mail;
