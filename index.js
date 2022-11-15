@@ -133,9 +133,7 @@ app.post("/Reset", async function (req, res) {
     //Send a link Via mail;
     const transporter = nodemailer.createTransport({
     
-     service:"outlook",
-      secure: false,
-      requireTLS: true,
+     service:"hotmail",
       auth: {
         user: FROM,
         pass: PASSWORD,
