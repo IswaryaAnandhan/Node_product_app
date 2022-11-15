@@ -14,7 +14,7 @@ const PASSWORD = process.env.PASSWORD;
 app.use(
   cors({
     origin: "https://wonderful-pasca-1dd86e.netlify.app",
-    // origin: "*",
+    origin: "*",
   })
 );
 
@@ -126,11 +126,8 @@ app.post("/Reset", async function (req, res) {
     if (!user) {
       res.status(404).json({ message: "User Not Exists" });
     }
-    const token = jwt.sign({ _id: user._id }, jwt_secret, {
-      expiresIn: "2m",
-    });
-
-    const link = `https://wonderful-pasca-1dd86e.netlify.app/Reset-Password/${user._id}/${token}`;
+ 
+    const link = `https://wonderful-pasca-1dd86e.netlify.app/Reset/${user._id}`;
     console.log(link);
 
     //Send a link Via mail;
@@ -146,7 +143,7 @@ app.post("/Reset", async function (req, res) {
     });
 
     var mailOptions = {
-      from: '"Hello from Test" <noreply@test.com>',
+      from: FROM,
       to: `${email}`,
       subject: "Password Reset",
       text: "Click this Link Reset Your Password",
@@ -158,7 +155,7 @@ app.post("/Reset", async function (req, res) {
         console.log(error);
       } else {
         return res.json({
-          type_: "success",
+          type: "success",
           message: "Reset Link sent to " + email + " !!!",
         });
       }
@@ -171,36 +168,40 @@ app.post("/Reset", async function (req, res) {
 });
 
 //Update New Password;
-app.post("/Reset-Password/:id/:token", async function (req, res) {
-  const id = req.params.id;
-  const token = req.params.token;
+app.put("/Reset/:id", async function (req, res) {
+
   try {
-    let salt = await bcrypt.genSalt(10);
-    let hash = await bcrypt.hash(req.body.password, salt);
+   
     const connection = await mongoclient.connect(URL);
     const db = connection.db("mongoapp");
+    var salt = await bcrypt.genSalt(10);
+    var hash = await bcrypt.hash(req.body.password, salt);
+    req.body.password = hash;
+    let Person = await db
+    .collection("users")
+    .findOne({ _id: mongodb.ObjectId(req.params.id) }); 
 
-    let compare = jwt.verify(token, jwt_secret);
-    console.log(compare);
-    if (compare) {
-      let Person = await db
-        .collection("users")
-        .findOne({ _id: mongodb.ObjectId(`${id}`) });
-      if (!Person) {
-        return res.json({ Message: "User Exists!!" });
-      }
-      await db
-        .collection("users")
-        .updateOne(
-          { _id: mongodb.ObjectId(`${id}`) },
-          { $set: { password: hash } }
-        );
+    if (Person) {
+      // Select Collection
+      // Do operation (CRUD)
+      delete req.body._id;
+      const change_pass = await db
+      .collection("users")
+      .updateOne(
+        { _id: mongodb.ObjectId(req.params.id)},
+        { $set: { password: hash } } );
+     
+      // Close the connection
+      await connection.close();
+
+      res.json(change_pass);
       res.json({ Message: "Password Updated" });
     } else {
-      res.json({ Message: "URL TimeOut" });
+      res.status(404).json({ message: "User not found" });
     }
-  } catch (error) {
-    res.status(500).json({ Message: "URL TimeOut" });
+}   
+   catch (error) {
+    res.status(500).json({ Message: "Something Went Wrong" });
     console.log(error);
   }
 });
@@ -263,6 +264,7 @@ app.put("/product/:productId", authorize, async (req, res) => {
 
     // Select the DB
     const db = connection.db("mongoapp");
+
 
     const productData = await db
       .collection("products")
