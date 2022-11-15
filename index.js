@@ -8,42 +8,47 @@ const URL = process.env.DB;
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const jwt_secret = process.env.jwt_secret;
+const nodemailer = require("nodemailer");
+const FROM = process.env.FROM;
+const PASSWORD = process.env.PASSWORD;
 app.use(
   cors({
-    // origin: "https://wonderful-pasca-1dd86e.netlify.app",
-    origin: "*",
+    origin: "https://wonderful-pasca-1dd86e.netlify.app",
+    // origin: "*",
   })
 );
 
 app.use(express.json());
 
-let authorize=(req, res,next)=>{  //middleware
+let authorize = (req, res, next) => {
+  //middleware
   try {
     //check if authorization token present
-  console.log(req.headers)
-  if(req.headers.authorization){
-   let decodedToken= jwt.verify(req.headers.authorization,jwt_secret)
-   if(decodedToken){
-    next()
-   }else{
-    res.status(401).json({message:"unauthorized"})
-   }
-  }
-  else{
-    res.status(401).json({message:"unauthorized"})
-  }
-  //check if the token is valid
-  //if valid say next()
-  //if not valid say unauthorized
+    console.log(req.headers);
+    if (req.headers.authorization) {
+      let decodedToken = jwt.verify(req.headers.authorization, jwt_secret);
+      if (decodedToken) {
+        next();
+      } else {
+        res.status(401).json({ message: "unauthorized" });
+      }
+    } else {
+      res.status(401).json({ message: "unauthorized" });
+    }
+    //check if the token is valid
+    //if valid say next()
+    //if not valid say unauthorized
   } catch (error) {
     console.log(error);
-    res.status(401).json({message:"unauthorized"})
+    res.status(401).json({ message: "unauthorized" });
   }
-  }
-
-
+};
 
 let products = [];
+
+app.get("/", function (req, res) {
+  res.send("<h1>Full stack Project...</h1>");
+});
 
 app.post("/user/register", async (req, res) => {
   try {
@@ -109,15 +114,106 @@ app.post("/user/login", async (req, res) => {
   }
 });
 
+app.post("/Reset", async function (req, res) {
+  try {
+    const connection = await mongoclient.connect(URL);
+    const db = connection.db("mongoapp");
+    const user = await db
+      .collection("users")
+      .findOne({ email: req.body.email });
+    let email = req.body.email;
+
+    if (!user) {
+      res.status(404).json({ message: "User Not Exists" });
+    }
+    const token = jwt.sign({ _id: user._id }, jwt_secret, {
+      expiresIn: "2m",
+    });
+
+    const link = `https://wonderful-pasca-1dd86e.netlify.app/${user._id}/${token}`;
+    console.log(link);
+
+    //Send a link Via mail;
+    const transporter = nodemailer.createTransport({
+    
+     service:"outlook",
+      secure: false,
+      requireTLS: true,
+      auth: {
+        user: FROM,
+        pass: PASSWORD,
+      },
+    });
+
+    var mailOptions = {
+      from: '"Hello from Test" <noreply@test.com>',
+      to: `${email}`,
+      subject: "Password Reset",
+      text: "Click this Link Reset Your Password",
+      html: `<Link to=${link} target="_blank">${link}</Link>`,
+    };
+
+    transporter.sendMail(mailOptions, function (error, info) {
+      if (error) {
+        console.log(error);
+      } else {
+        return res.json({
+          type_: "success",
+          message: "Reset Link sent to " + email + " !!!",
+        });
+      }
+    });
+    res.send(link);
+  } catch (error) {
+    res.status(500).json({ Message: "Something Went Wrong" });
+    console.log(error);
+  }
+});
+
+//Update New Password;
+app.post("/Reset-Password/:id/:token", async function (req, res) {
+  const id = req.params.id;
+  const token = req.params.token;
+  try {
+    let salt = await bcrypt.genSalt(10);
+    let hash = await bcrypt.hash(req.body.password, salt);
+    const connection = await mongoclient.connect(URL);
+    const db = connection.db("mongoapp");
+
+    let compare = jwt.verify(token, jwt_secret);
+    console.log(compare);
+    if (compare) {
+      let Person = await db
+        .collection("users")
+        .findOne({ _id: mongodb.ObjectId(`${id}`) });
+      if (!Person) {
+        return res.json({ Message: "User Exists!!" });
+      }
+      await db
+        .collection("users")
+        .updateOne(
+          { _id: mongodb.ObjectId(`${id}`) },
+          { $set: { password: hash } }
+        );
+      res.json({ Message: "Password Updated" });
+    } else {
+      res.json({ Message: "URL TimeOut" });
+    }
+  } catch (error) {
+    res.status(500).json({ Message: "URL TimeOut" });
+    console.log(error);
+  }
+});
+
 // Create
-app.post("/product",authorize, async (req, res) => {
+app.post("/product", authorize, async (req, res) => {
   try {
     // Connect the Database
     const connection = await mongoclient.connect(URL);
 
     // Select the DB
     const db = connection.db("mongoapp");
-   
+
     // Select Collection
     // Do operation (CRUD)
     const product = await db.collection("products").insertOne(req.body);
@@ -137,7 +233,7 @@ app.post("/product",authorize, async (req, res) => {
 });
 
 // Read
-app.get("/products",authorize, async (req, res) => {
+app.get("/products", authorize, async (req, res) => {
   try {
     // Connect the Database
     const connection = await mongoclient.connect(URL);
@@ -160,7 +256,7 @@ app.get("/products",authorize, async (req, res) => {
 });
 
 // URL Parameter // 3
-app.put("/product/:productId",authorize,async (req, res) => {
+app.put("/product/:productId", authorize, async (req, res) => {
   try {
     // Connect the Database
     const connection = await mongoclient.connect(URL);
@@ -212,7 +308,7 @@ app.put("/product/:productId",authorize,async (req, res) => {
   // }
 });
 
-app.get("/product/:productId",authorize,async (req, res) => {
+app.get("/product/:productId", authorize, async (req, res) => {
   try {
     // Connect the Database
     const connection = await mongoclient.connect(URL);
@@ -244,7 +340,7 @@ app.get("/product/:productId",authorize,async (req, res) => {
   // res.json(products[productIndex]);
 });
 
-app.delete(`/product/:productId`,authorize, async (req, res) => {
+app.delete(`/product/:productId`, authorize, async (req, res) => {
   try {
     // Connect the Database
     const connection = await mongoclient.connect(URL);
