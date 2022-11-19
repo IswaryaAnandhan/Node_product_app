@@ -1,4 +1,4 @@
-const express = require("express").Router;
+const express = require("express");
 const cors = require("cors");
 const mongodb = require("mongodb");
 const mongoclient = mongodb.MongoClient;
