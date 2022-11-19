@@ -16,8 +16,8 @@ const PASSWORD = process.env.PASSWORD;
 app.use(express.json());
 app.use(
   cors({
-    origin: "https://wonderful-pasca-1dd86e.netlify.app/"
-    // origin: "*",
+    // origin: "https://wonderful-pasca-1dd86e.netlify.app"
+    origin: "*"
   })
 );
 
