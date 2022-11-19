@@ -14,12 +14,7 @@ const FROM = process.env.FROM;
 const PASSWORD = process.env.PASSWORD;
 
 app.use(express.json());
-app.use(
-  cors({
-    // origin: "https://wonderful-pasca-1dd86e.netlify.app"
-    origin: "*"
-  })
-);
+app.use(cors({ origin: "https://wonderful-pasca-1dd86e.netlify.app" }));
 
 let authorize = (req, res, next) => {
   //middleware
@@ -125,7 +120,7 @@ app.post("/Reset", async function (req, res) {
     if (!user) {
       res.status(404).json({ message: "User Not Exists" });
     }
-    let token = jwt.sign({ _id: user._id },jwt_secret, { expiresIn: '5m' });
+    let token = jwt.sign({ _id: user._id }, jwt_secret, { expiresIn: "5m" });
     const link = `https://wonderful-pasca-1dd86e.netlify.app/Reset/${user._id}/${token}`;
     console.log(link);
 
@@ -133,7 +128,7 @@ app.post("/Reset", async function (req, res) {
     const transporter = nodemailer.createTransport({
       service: "gmail",
       auth: {
-        code: 'EAUTH',
+        code: "EAUTH",
         responseCode: 534,
         user: FROM,
         pass: PASSWORD,
