@@ -3,22 +3,23 @@ const cors = require("cors");
 const mongodb = require("mongodb");
 const mongoclient = mongodb.MongoClient;
 const app = express();
-const dotenv = require("dotenv").config();
-const URL = process.env.DB;
+require("dotenv").config();
+const URL = process.env.LINK;
+const DB = process.env.DB;
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const jwt_secret = process.env.jwt_secret;
 const nodemailer = require("nodemailer");
 const FROM = process.env.FROM;
 const PASSWORD = process.env.PASSWORD;
+
+app.use(express.json());
 app.use(
   cors({
     origin: "https://wonderful-pasca-1dd86e.netlify.app",
-    origin: "*",
+    // origin: "*",
   })
 );
-
-app.use(express.json());
 
 let authorize = (req, res, next) => {
   //middleware
@@ -44,8 +45,6 @@ let authorize = (req, res, next) => {
   }
 };
 
-let products = [];
-
 app.get("/", function (req, res) {
   res.send("<h1>Full stack Project...</h1>");
 });
@@ -56,7 +55,7 @@ app.post("/user/register", async (req, res) => {
     const connection = await mongoclient.connect(URL);
 
     // Select the DB
-    const db = connection.db("mongoapp");
+    const db = connection.db(DB);
 
     //hash the password
     var salt = await bcrypt.genSalt(10);
@@ -65,12 +64,12 @@ app.post("/user/register", async (req, res) => {
 
     // Select Collection
     // Do operation (CRUD)
-    const user = await db.collection("users").insertOne(req.body);
+    await db.collection("users").insertOne(req.body);
 
     // Close the connection
     await connection.close();
 
-    res.json({ message: "User created" });
+    res.json({ message: "User created Sucessfully" });
   } catch (error) {
     console.log(error);
     res.status(500).json({ message: "Something went wrong" });
@@ -83,7 +82,7 @@ app.post("/user/login", async (req, res) => {
     const connection = await mongoclient.connect(URL);
 
     // Select the DB
-    const db = connection.db("mongoapp");
+    const db = connection.db(DB);
 
     // Select Collection
     // Do operation (CRUD)
@@ -96,7 +95,7 @@ app.post("/user/login", async (req, res) => {
       if (compare) {
         //issue token
         const token = jwt.sign({ _id: user._id }, jwt_secret, {
-          expiresIn: "2m",
+          expiresIn: "3m",
         });
         res.json({ message: "Success", token });
       } else {
@@ -117,7 +116,7 @@ app.post("/user/login", async (req, res) => {
 app.post("/Reset", async function (req, res) {
   try {
     const connection = await mongoclient.connect(URL);
-    const db = connection.db("mongoapp");
+    const db = connection.db(DB);
     const user = await db
       .collection("users")
       .findOne({ email: req.body.email });
@@ -126,15 +125,16 @@ app.post("/Reset", async function (req, res) {
     if (!user) {
       res.status(404).json({ message: "User Not Exists" });
     }
- 
-    const link = `https://wonderful-pasca-1dd86e.netlify.app/Reset/${user._id}`;
+    let token = jwt.sign({ _id: user._id },jwt_secret, { expiresIn: '5m' });
+    const link = `https://wonderful-pasca-1dd86e.netlify.app/Reset/${user._id}/${token}`;
     console.log(link);
 
     //Send a link Via mail;
     const transporter = nodemailer.createTransport({
-    
-     service:"hotmail",
+      service: "gmail",
       auth: {
+        code: 'EAUTH',
+        responseCode: 534,
         user: FROM,
         pass: PASSWORD,
       },
@@ -142,7 +142,7 @@ app.post("/Reset", async function (req, res) {
 
     var mailOptions = {
       from: FROM,
-      to: `${email}`,
+      to: email,
       subject: "Password Reset",
       text: "Click this Link Reset Your Password",
       html: `<Link to=${link} target="_blank">${link}</Link>`,
@@ -152,10 +152,7 @@ app.post("/Reset", async function (req, res) {
       if (error) {
         console.log(error);
       } else {
-        return res.json({
-          type: "success",
-          message: "Reset Link sent to " + email + " !!!",
-        });
+        console.log("Email sent:" + info.response);
       }
     });
     res.send(link);
@@ -166,39 +163,40 @@ app.post("/Reset", async function (req, res) {
 });
 
 //Update New Password;
-app.put("/Reset/:id", async function (req, res) {
-
+app.post("/Reset/:id/:token", async function (req, res) {
+  const id = req.params.id;
+  const token = req.params.token;
   try {
-   
-    const connection = await mongoclient.connect(URL);
-    const db = connection.db("mongoapp");
     var salt = await bcrypt.genSalt(10);
     var hash = await bcrypt.hash(req.body.password, salt);
-    req.body.password = hash;
-    let Person = await db
-    .collection("users")
-    .findOne({ _id: mongodb.ObjectId(req.params.id) }); 
+    const connection = await mongoclient.connect(URL);
+    const db = connection.db(DB);
+    let compare = jwt.verify(token, jwt_secret);
+    console.log(compare);
 
-    if (Person) {
+    if (compare) {
       // Select Collection
       // Do operation (CRUD)
-      delete req.body._id;
-      const change_pass = await db
-      .collection("users")
-      .updateOne(
-        { _id: mongodb.ObjectId(req.params.id)},
-        { $set: { password: hash } } );
-     
+      let Person = await db
+        .collection("users")
+        .findOne({ _id: mongodb.ObjectId(`${id}`) });
+      if (!Person) {
+        return res.json({ Message: "User Exists!!" });
+      }
+      await db
+        .collection("users")
+        .updateOne(
+          { _id: mongodb.ObjectId(`${id}`) },
+          { $set: { password: hash } }
+        );
+
       // Close the connection
       await connection.close();
-
-      res.json(change_pass);
       res.json({ Message: "Password Updated" });
     } else {
       res.status(404).json({ message: "User not found" });
     }
-}   
-   catch (error) {
+  } catch (error) {
     res.status(500).json({ Message: "Something Went Wrong" });
     console.log(error);
   }
@@ -211,7 +209,7 @@ app.post("/product", authorize, async (req, res) => {
     const connection = await mongoclient.connect(URL);
 
     // Select the DB
-    const db = connection.db("mongoapp");
+    const db = connection.db(DB);
 
     // Select Collection
     // Do operation (CRUD)
@@ -238,7 +236,7 @@ app.get("/products", authorize, async (req, res) => {
     const connection = await mongoclient.connect(URL);
 
     // Select the DB
-    const db = connection.db("mongoapp");
+    const db = connection.db(DB);
 
     // Select Collection
     // Do operation (CRUD)
@@ -261,8 +259,7 @@ app.put("/product/:productId", authorize, async (req, res) => {
     const connection = await mongoclient.connect(URL);
 
     // Select the DB
-    const db = connection.db("mongoapp");
-
+    const db = connection.db(DB);
 
     const productData = await db
       .collection("products")
@@ -314,7 +311,7 @@ app.get("/product/:productId", authorize, async (req, res) => {
     const connection = await mongoclient.connect(URL);
 
     // Select the DB
-    const db = connection.db("mongoapp");
+    const db = connection.db(DB);
 
     // Select Collection
     // Do operation (CRUD)
@@ -346,7 +343,7 @@ app.delete(`/product/:productId`, authorize, async (req, res) => {
     const connection = await mongoclient.connect(URL);
 
     // Select the DB
-    const db = connection.db("mongoapp");
+    const db = connection.db(DB);
 
     const productData = await db
       .collection("products")
