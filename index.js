@@ -14,7 +14,10 @@ const FROM = process.env.FROM;
 const PASSWORD = process.env.PASSWORD;
 
 app.use(express.json());
-app.use(cors({ origin: "https://wonderful-pasca-1dd86e.netlify.app" }));
+app.use(cors({
+   origin: "https://wonderful-pasca-1dd86e.netlify.app"
+// ,origin:"http://localhost:3000" 
+}));
 
 let authorize = (req, res, next) => {
   //middleware
@@ -121,6 +124,7 @@ app.post("/Reset", async function (req, res) {
       res.status(404).json({ message: "User Not Exists" });
     }
     let token = jwt.sign({ _id: user._id }, jwt_secret, { expiresIn: "5m" });
+    // const link = `http://localhost:3000/Reset/${user._id}/${token}`;
     const link = `https://wonderful-pasca-1dd86e.netlify.app/Reset/${user._id}/${token}`;
     console.log(link);
 
