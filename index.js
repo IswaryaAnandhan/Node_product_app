@@ -14,10 +14,12 @@ const FROM = process.env.FROM;
 const PASSWORD = process.env.PASSWORD;
 
 app.use(express.json());
-app.use(cors({
-   origin: "https://wonderful-pasca-1dd86e.netlify.app"
-// ,origin:"http://localhost:3000" 
-}));
+app.use(
+  cors({
+     origin: "https://wonderful-pasca-1dd86e.netlify.app"
+    // origin: "http://localhost:3000",
+  })
+);
 
 let authorize = (req, res, next) => {
   //middleware
@@ -87,7 +89,7 @@ app.post("/user/login", async (req, res) => {
     const user = await db
       .collection("users")
       .findOne({ email: req.body.email });
-
+    console.log(jwt_secret);
     if (user) {
       const compare = await bcrypt.compare(req.body.password, user.password);
       if (compare) {
@@ -95,6 +97,7 @@ app.post("/user/login", async (req, res) => {
         const token = jwt.sign({ _id: user._id }, jwt_secret, {
           expiresIn: "3m",
         });
+
         res.json({ message: "Success", token });
       } else {
         res.json({ message: "Incorrect email/password" });
@@ -123,7 +126,7 @@ app.post("/Reset", async function (req, res) {
     if (!user) {
       res.status(404).json({ message: "User Not Exists" });
     }
-    let token = jwt.sign({ _id: user._id }, jwt_secret, { expiresIn: "5m" });
+    let token = jwt.sign({ _id: user._id }, jwt_secret, { expiresIn: "10m" });
     // const link = `http://localhost:3000/Reset/${user._id}/${token}`;
     const link = `https://wonderful-pasca-1dd86e.netlify.app/Reset/${user._id}/${token}`;
     console.log(link);
